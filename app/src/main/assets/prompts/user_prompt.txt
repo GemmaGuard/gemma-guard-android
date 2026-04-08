@@ -1,0 +1,23 @@
+Analyze the screenshot image together with the OCR text below.
+
+Look for:
+- urgent or threatening language
+- suspicious links or domains
+- requests for passwords, payment, or account verification
+- fake branding or misleading visual design
+- inconsistencies between the text and the visual layout
+
+OCR text:
+{{OCR_TEXT}}
+
+Return JSON only.
+Do not add markdown, code fences, or extra commentary.
+Use a real integer confidence from 0 to 100. Do not use placeholders.
+Use this exact shape:
+{
+  "risk": "Low | Medium | High",
+  "confidence": <integer 0-100>,
+  "reasons": ["short reason", "short reason", "short reason"],
+  "recommendation": "one short action sentence"
+}
+Keep reasons to 2 or 3 items.

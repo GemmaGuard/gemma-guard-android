@@ -1,0 +1,44 @@
+# macOS
+*.DS_Store
+
+# Android Studio / IntelliJ
+*.idea
+*.iml
+.gradle
+**/build/
+local.properties
+.project
+.settings
+.classpath
+
+# Kotlin daemon
+.kotlin/
+
+# Claude Code
+.claude/
+
+# Android signing keys — never commit these
+*.jks
+*.keystore
+
+# Build outputs
+*.apk
+*.aab
+
+# Environment / secrets
+.env
+.env.*
+
+# Gemma model files — too large for git; stage via ADB (see SETUP.md)
+*.litertlm
+*.bin
+*.gguf
+
+# Local test captures
+captures/
+
+# iOS boilerplate (not part of this project)
+**/Pods/
+**/*.xcuserstate
+ios-snippets/Podfile.lock
+ios-snippets/mlkit-snippets.xcworkspace/xcuserdata/dfurlong.xcuserdatad/UserInterfaceState.xcuserstate

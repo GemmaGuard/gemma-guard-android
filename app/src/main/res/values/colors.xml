@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="surface">#F8FAFC</color>
+    <color name="panel">#FFFFFF</color>
+    <color name="panelStroke">#E2E8F0</color>
+    <color name="ink">#0F172A</color>
+    <color name="inkMuted">#64748B</color>
+    <color name="accent">#14B8A6</color>
+    <color name="accentDark">#0F766E</color>
+    <color name="accentSurface">#CCFBF1</color>
+    <color name="riskLow">#22C55E</color>
+    <color name="riskLowSurface">#DCFCE7</color>
+    <color name="riskMedium">#F59E0B</color>
+    <color name="riskMediumSurface">#FEF3C7</color>
+    <color name="riskHigh">#EF4444</color>
+    <color name="riskHighSurface">#FEE2E2</color>
+    <color name="riskUnknown">#64748B</color>
+    <color name="riskUnknownSurface">#F1F5F9</color>
+    <color name="overlayScrim">#B20F172A</color>
+</resources>
