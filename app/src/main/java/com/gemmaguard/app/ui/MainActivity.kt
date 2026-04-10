@@ -1,16 +1,16 @@
 package com.gemmaguard.app.ui
 
+import android.content.ClipData
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
+import android.widget.Toast
 import androidx.annotation.ColorRes
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,12 +28,13 @@ import com.gemmaguard.app.capture.MediaProjectionScreenCaptureCoordinator
 import com.gemmaguard.app.capture.ScreenCaptureStore
 import com.gemmaguard.app.capture.ScreenCaptureUiState
 import com.gemmaguard.app.databinding.ActivityMainBinding
+import com.gemmaguard.app.databinding.DialogSharePreviewBinding
 import com.gemmaguard.app.databinding.ItemScanHistoryBinding
-import com.gemmaguard.app.databinding.ShareReportImageBinding
 import com.gemmaguard.app.model.PhishingAnalysisResult
 import com.gemmaguard.app.model.RiskLevel
 import com.gemmaguard.app.ocr.OcrTextFormatter
 import com.gemmaguard.app.ocr.TextRecognitionEngine
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -63,6 +64,7 @@ class MainActivity : AppCompatActivity() {
     private var lastRecognizedText: String? = null
     private var isModelPreparing: Boolean = false
     private var isMoreInfoExpanded: Boolean = false
+    private var isAdvancedInfoExpanded: Boolean = false
     private var currentAnalysisEntry: ScanHistoryEntry? = null
     private val scanHistory = ArrayDeque<ScanHistoryEntry>()
 
@@ -108,9 +110,11 @@ class MainActivity : AppCompatActivity() {
         binding.homeOrbButton.setOnClickListener(::onPrimaryActionClicked)
         binding.uploadImageButton.setOnClickListener { onUploadImageClicked() }
         binding.analysisMoreInfoButton.setOnClickListener { toggleMoreInfo() }
+        binding.analysisTechnicalToggleButton.setOnClickListener { toggleAdvancedInfo() }
         binding.analysisShareButton.setOnClickListener { shareCurrentAnalysis() }
         binding.overlayDismissButton.setOnClickListener {
             binding.scanningOverlay.isVisible = false
+            setHighRiskWarningVisible(false)
             binding.analysisCard.isVisible = true
         }
         binding.overlayShareButton.setOnClickListener { shareCurrentAnalysis() }
@@ -303,6 +307,7 @@ class MainActivity : AppCompatActivity() {
         replaceLastRecognizedBitmap(bitmap)
         lastRecognizedText = null
         isMoreInfoExpanded = false
+        isAdvancedInfoExpanded = false
         renderOcrLoading()
         renderAnalysisLoading()
         currentOcrJob = lifecycleScope.launch {
@@ -363,9 +368,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         gemmaAttempt.onSuccess { result ->
+            val completedAt = System.currentTimeMillis()
             renderAnalysisResult(
                 result = result,
                 source = AnalysisSource.GEMMA4,
+                timestampMillis = completedAt,
             )
             renderAnalysisDiagnostics(
                 title = null,
@@ -376,13 +383,16 @@ class MainActivity : AppCompatActivity() {
                 ocrText = input.ocrText,
                 result = result,
                 source = AnalysisSource.GEMMA4,
+                timestampMillis = completedAt,
             )
         }.onFailure { throwable ->
             Log.e(TAG, "Gemma 4 analysis failed. Falling back to local analyzer.", throwable)
             val fallbackResult = localPhishingAnalyzer.analyze(input)
+            val completedAt = System.currentTimeMillis()
             renderAnalysisResult(
                 result = fallbackResult,
                 source = AnalysisSource.LOCAL_FALLBACK,
+                timestampMillis = completedAt,
             )
             renderAnalysisDiagnostics(
                 title = getString(com.gemmaguard.app.R.string.analysis_diagnostics_title),
@@ -396,6 +406,7 @@ class MainActivity : AppCompatActivity() {
                 ocrText = input.ocrText,
                 result = fallbackResult,
                 source = AnalysisSource.LOCAL_FALLBACK,
+                timestampMillis = completedAt,
             )
         }
     }
@@ -521,7 +532,7 @@ class MainActivity : AppCompatActivity() {
         binding.analysisOcrStatus.text = getString(com.gemmaguard.app.R.string.ocr_status_complete)
         binding.analysisOcrText.isVisible = true
         binding.analysisOcrEmpty.isVisible = false
-        binding.analysisOcrText.text = text
+        binding.analysisOcrText.text = cleanOcrTextForDisplay(text)
     }
 
     private fun renderOcrEmpty() {
@@ -548,12 +559,23 @@ class MainActivity : AppCompatActivity() {
     private fun renderAnalysisResult(
         result: PhishingAnalysisResult,
         source: AnalysisSource,
+        timestampMillis: Long,
     ) {
         val riskColors = riskPaletteFor(result.riskLevel)
+        val isHighRisk = result.riskLevel == RiskLevel.HIGH
         val displayReasons = result.reasons.map(::sanitizeDisplayText)
         val displaySummary = displayReasons.firstOrNull()
             ?: sanitizeDisplayText(result.recommendation)
+        val summaryLine = if (isHighRisk) {
+            shareBodyFor(result.riskLevel)
+        } else {
+            displaySummary.ifBlank { shareBodyFor(result.riskLevel) }
+        }
+        val conciseRecommendation = conciseRecommendationFor(result)
+        val detailReasons = displayReasons
+            .filterNot { isDuplicateSummaryReason(reason = it, summary = summaryLine) }
         applyAnalysisCardColors(riskColors)
+        setHighRiskWarningVisible(isHighRisk)
         stopOverlayMessageCycle()
         binding.overlayScanningSection.isVisible = false
         binding.overlayResultBanner.isVisible = true
@@ -564,6 +586,8 @@ class MainActivity : AppCompatActivity() {
             cornerRadius = 0f
             setColor(getColor(riskColors.accentColorRes))
         }
+        binding.overlayWarningIcon.isVisible = isHighRisk
+        binding.overlayConfidenceRow.isVisible = false
         binding.overlayResultConfidence.text = formatConfidenceValue(result.confidence)
         binding.overlayResultConfidenceContainer.background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
@@ -571,52 +595,86 @@ class MainActivity : AppCompatActivity() {
             setStroke((resources.displayMetrics.density * 5).toInt(), getColor(com.gemmaguard.app.R.color.accentSurface))
         }
         binding.overlayResultSource.text = sourceLabelFor(source)
-        binding.overlayResultSummary.text = displaySummary
-        binding.overlayResultReasons.text = displayReasons.take(3).joinToString("\n") { "• $it" }
-        binding.overlayResultRecommendation.text = sanitizeDisplayText(result.recommendation)
+        binding.overlayResultSummary.maxLines = 4
+        binding.overlayResultSummary.text = if (isHighRisk) {
+            conciseRecommendation
+        } else {
+            summaryLine
+        }
+        binding.overlayResultReasonsTitle.isVisible = false
+        binding.overlayResultReasons.isVisible = false
+        binding.overlayResultReasons.text = detailReasons.take(3).joinToString("\n") { "• $it" }
+        binding.overlayResultRecommendation.isVisible = false
+        binding.overlayResultRecommendation.text = conciseRecommendation
         binding.analysisProgress.isVisible = false
         binding.analysisBanner.text = bannerLabelFor(result.riskLevel)
-        binding.analysisSourceBadge.isVisible = true
+        binding.analysisLastScan.isVisible = true
+        binding.analysisLastScan.text = getString(
+            com.gemmaguard.app.R.string.analysis_last_scan,
+            formatScanTimestamp(timestampMillis),
+        )
+        binding.analysisWarningIcon.isVisible = isHighRisk
+        binding.analysisSourceBadge.isVisible = false
         binding.analysisSourceBadge.text = sourceLabelFor(source)
         binding.analysisConfidence.text = formatConfidenceValue(result.confidence)
-        binding.analysisStatus.text = displaySummary
-        binding.analysisReasonsTitle.isVisible = displayReasons.isNotEmpty()
-        binding.analysisReasons.isVisible = displayReasons.isNotEmpty()
-        binding.analysisReasons.text = displayReasons.joinToString(separator = "\n") { "• $it" }
-        binding.analysisRecommendationTitle.isVisible = true
-        binding.analysisRecommendation.isVisible = true
-        binding.analysisRecommendation.text = sanitizeDisplayText(result.recommendation)
+        binding.analysisConfidenceRow.isVisible = false
+        binding.analysisStatus.text = summaryLine
+        binding.analysisReasonsTitle.isVisible = false
+        binding.analysisReasons.isVisible = false
+        binding.analysisReasons.text = detailReasons.joinToString(separator = "\n") { "• $it" }
+        binding.analysisRecommendationTitle.isVisible = false
+        binding.analysisRecommendation.isVisible = false
+        binding.analysisRecommendation.text = conciseRecommendation
         binding.analysisModelSummary.text = buildString {
             append(sourceLabelFor(source))
             append("\n")
-            append(gemmaAnalyzer.engineSummary())
+            append(modelDetailsFor(source))
         }
+        binding.analysisDetailsConfidence.text = getString(
+            com.gemmaguard.app.R.string.analysis_details_confidence,
+            formatConfidenceValue(result.confidence),
+        )
+        binding.analysisDetailsReasonsTitle.isVisible = detailReasons.isNotEmpty()
+        binding.analysisDetailsReasons.isVisible = detailReasons.isNotEmpty()
+        binding.analysisDetailsReasons.text = detailReasons.joinToString(separator = "\n") { "• $it" }
+        binding.analysisDetailsRecommendationTitle.isVisible = true
+        binding.analysisDetailsRecommendation.isVisible = true
+        binding.analysisDetailsRecommendation.text = conciseRecommendation
         binding.analysisMoreInfoButton.isVisible = true
+        isAdvancedInfoExpanded = false
         binding.analysisShareButton.isVisible = true
         renderMoreInfoSection()
     }
 
     private fun renderAnalysisLoading() {
         applyAnalysisCardColors(riskPaletteFor(RiskLevel.UNKNOWN))
+        setHighRiskWarningVisible(false)
         currentAnalysisEntry = null
         binding.analysisCard.isVisible = false
         binding.scanningOverlay.isVisible = true
         binding.overlayScanningSection.isVisible = true
         binding.overlayResultBanner.isVisible = false
         binding.overlayResultSection.isVisible = false
+        binding.overlayWarningIcon.isVisible = false
+        binding.overlayConfidenceRow.isVisible = true
         binding.analysisProgress.isVisible = true
         binding.analysisBanner.text = getString(com.gemmaguard.app.R.string.analysis_banner_loading)
+        binding.analysisLastScan.isVisible = false
         binding.analysisSourceBadge.isVisible = true
         binding.analysisSourceBadge.text = getString(com.gemmaguard.app.R.string.analysis_source_gemma)
         binding.analysisConfidence.text = ""
+        binding.analysisConfidenceRow.isVisible = false
+        binding.analysisWarningIcon.isVisible = false
         binding.analysisStatus.text = getString(com.gemmaguard.app.R.string.analysis_status_loading_static)
         binding.analysisMoreInfoButton.isVisible = false
         binding.analysisShareButton.isVisible = false
         binding.analysisMoreInfoSection.isVisible = false
+        isAdvancedInfoExpanded = false
         binding.analysisReasonsTitle.isVisible = false
         binding.analysisReasons.isVisible = false
         binding.analysisRecommendationTitle.isVisible = false
         binding.analysisRecommendation.isVisible = false
+        clearAnalysisDetailFields()
         renderAnalysisDiagnostics(
             title = null,
             details = null,
@@ -627,8 +685,10 @@ class MainActivity : AppCompatActivity() {
     private fun renderAnalysisEmpty(status: String) {
         stopOverlayMessageCycle()
         currentAnalysisEntry = null
+        setHighRiskWarningVisible(false)
         binding.scanningOverlay.isVisible = false
         binding.analysisCard.isVisible = false
+        binding.analysisLastScan.isVisible = false
         binding.analysisStatus.text = status
     }
 
@@ -636,18 +696,24 @@ class MainActivity : AppCompatActivity() {
         applyAnalysisCardColors(riskPaletteFor(RiskLevel.UNKNOWN))
         stopOverlayMessageCycle()
         currentAnalysisEntry = null
+        setHighRiskWarningVisible(false)
         binding.scanningOverlay.isVisible = false
         binding.analysisCard.isVisible = true
         binding.analysisProgress.isVisible = false
         binding.analysisBanner.text = getString(com.gemmaguard.app.R.string.analysis_banner_idle)
+        binding.analysisLastScan.isVisible = false
+        binding.analysisWarningIcon.isVisible = false
         binding.analysisSourceBadge.isVisible = false
         binding.analysisConfidence.text = getString(com.gemmaguard.app.R.string.analysis_confidence_unavailable)
+        binding.analysisConfidenceRow.isVisible = false
         binding.analysisStatus.text = userStatus
         binding.analysisReasonsTitle.isVisible = false
         binding.analysisReasons.isVisible = false
         binding.analysisRecommendationTitle.isVisible = false
         binding.analysisRecommendation.isVisible = false
+        clearAnalysisDetailFields()
         binding.analysisMoreInfoButton.isVisible = true
+        isAdvancedInfoExpanded = false
         binding.analysisShareButton.isVisible = false
         binding.analysisModelSummary.text = gemmaAnalyzer.engineSummary()
         renderMoreInfoSection()
@@ -655,6 +721,30 @@ class MainActivity : AppCompatActivity() {
             title = getString(com.gemmaguard.app.R.string.analysis_diagnostics_title),
             details = diagnostics,
         )
+    }
+
+    private fun setHighRiskWarningVisible(isVisible: Boolean) {
+        binding.highRiskWarningFrame.isVisible = false
+        binding.overlayHighRiskWarningFrame.isVisible = isVisible
+    }
+
+    private fun clearAnalysisDetailFields() {
+        binding.analysisDetailsConfidence.text = ""
+        binding.analysisPrivacySummary.text = getString(com.gemmaguard.app.R.string.analysis_privacy_summary)
+        binding.analysisDetailsReasonsTitle.isVisible = false
+        binding.analysisDetailsReasons.isVisible = false
+        binding.analysisDetailsReasons.text = ""
+        binding.analysisDetailsRecommendationTitle.isVisible = false
+        binding.analysisDetailsRecommendation.isVisible = false
+        binding.analysisDetailsRecommendation.text = ""
+    }
+
+    private fun modelDetailsFor(source: AnalysisSource): String {
+        return if (source == AnalysisSource.GEMMA4) {
+            getString(com.gemmaguard.app.R.string.analysis_model_details_gemma)
+        } else {
+            gemmaAnalyzer.engineSummary()
+        }
     }
 
     private fun startAnalysisTicker() {
@@ -680,15 +770,23 @@ class MainActivity : AppCompatActivity() {
         binding.analysisDiagnostics.text = details.orEmpty()
     }
 
+    private fun formatScanTimestamp(timestampMillis: Long): String {
+        return DateFormat.getDateTimeInstance(
+            DateFormat.MEDIUM,
+            DateFormat.SHORT,
+        ).format(timestampMillis)
+    }
+
     private fun appendHistoryEntry(
         screenshot: Bitmap?,
         ocrText: String,
         result: PhishingAnalysisResult,
         source: AnalysisSource,
+        timestampMillis: Long,
     ) {
         scanHistory.addFirst(
             ScanHistoryEntry(
-                timestampMillis = System.currentTimeMillis(),
+                timestampMillis = timestampMillis,
                 source = source,
                 result = result,
                 summary = sanitizeDisplayText(result.reasons.firstOrNull() ?: result.recommendation),
@@ -749,9 +847,109 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun shareHistoryEntry(entry: ScanHistoryEntry) {
-        val imageUri = createReportImageUri(entry)
+        showSharePreview(entry)
+    }
+
+    private fun shareCurrentAnalysis() {
+        currentAnalysisEntry?.let(::shareHistoryEntry)
+    }
+
+    private fun buildShareText(entry: ScanHistoryEntry): String {
+        return listOf(
+            shareTitleFor(entry.result.riskLevel),
+            "",
+            shareBodyFor(entry.result.riskLevel),
+            "",
+            getString(
+                com.gemmaguard.app.R.string.history_confidence,
+                formatConfidenceValue(entry.result.confidence),
+            ),
+            "",
+            getString(com.gemmaguard.app.R.string.share_summary_recommendation_title),
+            conciseRecommendationFor(entry.result),
+            "",
+            getString(com.gemmaguard.app.R.string.share_summary_footer),
+        ).joinToString(separator = "\n")
+    }
+
+    private fun shareTitleFor(riskLevel: RiskLevel): String {
+        val titleRes = when (riskLevel) {
+            RiskLevel.HIGH -> com.gemmaguard.app.R.string.share_summary_high_title
+            RiskLevel.MEDIUM -> com.gemmaguard.app.R.string.share_summary_medium_title
+            RiskLevel.LOW -> com.gemmaguard.app.R.string.share_summary_low_title
+            RiskLevel.UNKNOWN -> com.gemmaguard.app.R.string.share_summary_unknown_title
+        }
+        return getString(titleRes)
+    }
+
+    private fun shareBodyFor(riskLevel: RiskLevel): String {
+        val bodyRes = when (riskLevel) {
+            RiskLevel.HIGH -> com.gemmaguard.app.R.string.share_summary_high_body
+            RiskLevel.MEDIUM -> com.gemmaguard.app.R.string.share_summary_medium_body
+            RiskLevel.LOW -> com.gemmaguard.app.R.string.share_summary_low_body
+            RiskLevel.UNKNOWN -> com.gemmaguard.app.R.string.share_summary_unknown_body
+        }
+        return getString(bodyRes)
+    }
+
+    private fun conciseRecommendationFor(result: PhishingAnalysisResult): String {
+        val recommendation = sanitizeDisplayText(result.recommendation)
+        if (
+            result.riskLevel != RiskLevel.HIGH &&
+            recommendation.length <= MAX_SHARE_RECOMMENDATION_LENGTH &&
+            !recommendation.contains(";") &&
+            !recommendation.contains(". ")
+        ) {
+            return recommendation
+        }
+
+        val recommendationRes = when (result.riskLevel) {
+            RiskLevel.HIGH -> com.gemmaguard.app.R.string.share_default_high_recommendation
+            RiskLevel.MEDIUM -> com.gemmaguard.app.R.string.share_default_medium_recommendation
+            RiskLevel.LOW -> com.gemmaguard.app.R.string.share_default_low_recommendation
+            RiskLevel.UNKNOWN -> com.gemmaguard.app.R.string.share_default_unknown_recommendation
+        }
+        return getString(recommendationRes)
+    }
+
+    private fun showSharePreview(entry: ScanHistoryEntry) {
+        val previewBinding = DialogSharePreviewBinding.inflate(layoutInflater)
+        val shareText = buildShareText(entry)
+        val screenshotBitmap = decodeShareScreenshot(entry.screenshotPath)
+
+        previewBinding.sharePreviewText.text = shareText
+        previewBinding.sharePreviewScreenshotTitle.isVisible = screenshotBitmap != null
+        previewBinding.sharePreviewScreenshotCard.isVisible = screenshotBitmap != null
+        previewBinding.sharePreviewScreenshot.setImageBitmap(screenshotBitmap)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(com.gemmaguard.app.R.string.share_preview_title)
+            .setView(previewBinding.root)
+            .setPositiveButton(com.gemmaguard.app.R.string.share_preview_action) { _, _ ->
+                Toast.makeText(
+                    this,
+                    com.gemmaguard.app.R.string.share_ready_to_share,
+                    Toast.LENGTH_SHORT,
+                ).show()
+                launchShareIntent(entry, shareText)
+            }
+            .setNegativeButton(com.gemmaguard.app.R.string.share_preview_cancel, null)
+            .create()
+            .apply {
+                setOnDismissListener {
+                    previewBinding.sharePreviewScreenshot.setImageDrawable(null)
+                    if (screenshotBitmap != null && !screenshotBitmap.isRecycled) {
+                        screenshotBitmap.recycle()
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun launchShareIntent(entry: ScanHistoryEntry, shareText: String) {
+        val screenshotUri = screenshotUriFor(entry.screenshotPath)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "image/png"
+            type = if (screenshotUri != null) "image/*" else "text/plain"
             putExtra(
                 Intent.EXTRA_SUBJECT,
                 getString(
@@ -759,9 +957,12 @@ class MainActivity : AppCompatActivity() {
                     riskLabelFor(entry.result.riskLevel),
                 ),
             )
-            putExtra(Intent.EXTRA_TEXT, buildShareText(entry))
-            putExtra(Intent.EXTRA_STREAM, imageUri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra(Intent.EXTRA_TEXT, shareText)
+            screenshotUri?.let { uri ->
+                putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = ClipData.newUri(contentResolver, "Gemma Guard screenshot", uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
         }
         startActivity(
             Intent.createChooser(
@@ -771,64 +972,21 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun shareCurrentAnalysis() {
-        currentAnalysisEntry?.let(::shareHistoryEntry)
-    }
+    private fun screenshotUriFor(path: String?): Uri? {
+        if (path.isNullOrBlank()) {
+            return null
+        }
 
-    private fun buildShareText(entry: ScanHistoryEntry): String {
-        return getString(com.gemmaguard.app.R.string.share_saved_me)
-    }
+        val screenshotFile = File(path)
+        if (!screenshotFile.isFile) {
+            return null
+        }
 
-    private fun createReportImageUri(entry: ScanHistoryEntry): Uri {
-        val binding = ShareReportImageBinding.inflate(LayoutInflater.from(this))
-        val palette = riskPaletteFor(entry.result.riskLevel)
-        val cleanedReasons = entry.result.reasons.map(::sanitizeDisplayText)
-        val cleanedSummary = sanitizeDisplayText(entry.summary)
-
-        binding.shareSource.text = sourceLabelFor(entry.source)
-        binding.shareBanner.text = bannerLabelFor(entry.result.riskLevel)
-        binding.shareSummary.text = cleanedSummary
-        binding.shareConfidence.text = formatConfidenceValue(entry.result.confidence)
-        binding.shareReasons.text = cleanedReasons.take(2).joinToString(separator = "\n") { "• $it" }
-        binding.shareRecommendation.text = getString(
-            com.gemmaguard.app.R.string.share_recommendation_inline,
-            sanitizeDisplayText(entry.result.recommendation),
+        return FileProvider.getUriForFile(
+            this,
+            "$packageName.fileprovider",
+            screenshotFile,
         )
-        val screenshotBitmap = decodeShareScreenshot(entry.screenshotPath)
-        binding.shareScreenshot.setImageBitmap(screenshotBitmap)
-        binding.shareScreenshot.isVisible = screenshotBitmap != null
-        binding.shareScreenshotTitle.isVisible = screenshotBitmap != null
-
-        binding.shareBanner.background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = 0f
-            setColor(getColor(palette.accentColorRes))
-        }
-        binding.shareConfidenceContainer.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(getColor(com.gemmaguard.app.R.color.panel))
-            setStroke((resources.displayMetrics.density * 5).toInt(), getColor(com.gemmaguard.app.R.color.accent))
-        }
-
-        val bitmap = createBitmapFromView(binding.root)
-        return try {
-            val outputFile = File(cacheDir, "shared-analysis-${entry.timestampMillis}.png")
-            outputFile.outputStream().use { output ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-            }
-            FileProvider.getUriForFile(
-                this,
-                "$packageName.fileprovider",
-                outputFile,
-            )
-        } finally {
-            if (!bitmap.isRecycled) {
-                bitmap.recycle()
-            }
-            if (screenshotBitmap != null && !screenshotBitmap.isRecycled) {
-                screenshotBitmap.recycle()
-            }
-        }
     }
 
     private fun decodeShareScreenshot(path: String?): Bitmap? {
@@ -911,17 +1069,6 @@ class MainActivity : AppCompatActivity() {
         }.getOrNull()
     }
 
-    private fun createBitmapFromView(view: View): Bitmap {
-        val widthSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        view.measure(widthSpec, heightSpec)
-        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
-        return Bitmap.createBitmap(view.measuredWidth, view.measuredHeight, Bitmap.Config.ARGB_8888).also { bitmap ->
-            val canvas = Canvas(bitmap)
-            view.draw(canvas)
-        }
-    }
-
     private fun buildDiagnosticsMessage(prefix: String, throwable: Throwable): String {
         val message = throwable.message?.trim().orEmpty().ifEmpty { "No exception message was provided." }
         return "$prefix\n${throwable::class.java.simpleName}: $message"
@@ -958,11 +1105,27 @@ class MainActivity : AppCompatActivity() {
         renderMoreInfoSection()
     }
 
+    private fun toggleAdvancedInfo() {
+        isAdvancedInfoExpanded = !isAdvancedInfoExpanded
+        renderAdvancedInfoSection()
+    }
+
     private fun renderMoreInfoSection() {
         binding.analysisMoreInfoSection.isVisible = isMoreInfoExpanded && binding.analysisMoreInfoButton.isVisible
         binding.analysisMoreInfoButton.text = getString(
             if (isMoreInfoExpanded) com.gemmaguard.app.R.string.analysis_hide_information
             else com.gemmaguard.app.R.string.analysis_more_information,
+        )
+        renderAdvancedInfoSection()
+    }
+
+    private fun renderAdvancedInfoSection() {
+        val canShowAdvanced = isMoreInfoExpanded && binding.analysisMoreInfoButton.isVisible
+        binding.analysisAdvancedSection.isVisible = canShowAdvanced && isAdvancedInfoExpanded
+        binding.analysisTechnicalToggleButton.isVisible = canShowAdvanced
+        binding.analysisTechnicalToggleButton.text = getString(
+            if (isAdvancedInfoExpanded) com.gemmaguard.app.R.string.analysis_hide_technical_details
+            else com.gemmaguard.app.R.string.analysis_show_technical_details,
         )
     }
 
@@ -1021,6 +1184,68 @@ class MainActivity : AppCompatActivity() {
             .trim()
     }
 
+    private fun isDuplicateSummaryReason(reason: String, summary: String): Boolean {
+        val normalizedReason = normalizeForComparison(reason)
+        val normalizedSummary = normalizeForComparison(summary)
+        if (normalizedReason.isBlank() || normalizedSummary.isBlank()) {
+            return false
+        }
+
+        return normalizedReason == normalizedSummary ||
+            normalizedReason.contains(normalizedSummary) ||
+            normalizedSummary.contains(normalizedReason)
+    }
+
+    private fun normalizeForComparison(text: String): String {
+        return text
+            .lowercase()
+            .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
+    private fun cleanOcrTextForDisplay(text: String): String {
+        val cleanedLines = text
+            .lineSequence()
+            .map { line ->
+                line
+                    .replace(Regex("[\\u0000-\\u001F]+"), " ")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+            }
+            .filter { it.isNotBlank() }
+            .filterNot(::isLikelySystemOcrNoise)
+            .fold(mutableListOf<String>()) { lines, line ->
+                if (lines.lastOrNull() != line) {
+                    lines += line
+                }
+                lines
+            }
+
+        return cleanedLines
+            .joinToString(separator = "\n")
+            .ifBlank { sanitizeDisplayText(text) }
+    }
+
+    private fun isLikelySystemOcrNoise(line: String): Boolean {
+        val normalized = line
+            .trim(' ', '|', '•', '-', '_', '.', ',', ':')
+            .trim()
+        val lowercase = normalized.lowercase()
+
+        if (lowercase.contains(Regex("(http|www\\.|@|account|verify|login|password|payment|paypal|bank|security|suspend|locked|urgent|action|access|data|device|money|transfer|code)"))) {
+            return false
+        }
+
+        return normalized.length <= 2 ||
+            normalized.matches(Regex("\\d{1,2}:\\d{2}\\s*([ap]m)?", RegexOption.IGNORE_CASE)) ||
+            normalized.matches(Regex("(yesterday|today|tomorrow)(\\s*[•-]?\\s*\\d{1,2}:\\d{2}\\s*([ap]m)?)?", RegexOption.IGNORE_CASE)) ||
+            normalized.matches(Regex("\\d{1,3}%")) ||
+            normalized.matches(Regex("[\\d\\s()+-]{7,}")) ||
+            normalized.matches(Regex("(lte|5g|4g|wifi|wi-fi|sms|mms|abc|english \\([a-z]+\\))", RegexOption.IGNORE_CASE)) ||
+            normalized.matches(Regex("[^\\p{L}\\p{N}]{1,8}"))
+    }
+
     private fun bannerLabelFor(riskLevel: RiskLevel): String {
         val labelRes = when (riskLevel) {
             RiskLevel.LOW -> com.gemmaguard.app.R.string.analysis_banner_low
@@ -1051,8 +1276,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyAnalysisCardColors(palette: RiskPalette) {
         val strokeColor = getColor(palette.accentColorRes)
-        binding.analysisCard.setCardBackgroundColor(getColor(com.gemmaguard.app.R.color.panel))
-        binding.analysisCard.strokeColor = getColor(com.gemmaguard.app.R.color.panelStroke)
+        binding.analysisCard.setCardBackgroundColor(getColor(palette.surfaceColorRes))
+        binding.analysisCard.strokeColor = strokeColor
         binding.analysisBanner.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = 0f
@@ -1102,6 +1327,7 @@ class MainActivity : AppCompatActivity() {
         private const val ANALYSIS_TIMEOUT_MS = ANALYSIS_TIMEOUT_SECONDS * 1_000L
         private const val HISTORY_LIMIT = 10
         private const val MAX_UPLOADED_IMAGE_DIMENSION = 1600
+        private const val MAX_SHARE_RECOMMENDATION_LENGTH = 90
         private const val TAG = "GemmaGuard"
     }
 

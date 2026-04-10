@@ -7,6 +7,13 @@ Look for:
 - fake branding or misleading visual design
 - inconsistencies between the text and the visual layout
 
+Risk calibration:
+- Mark High Risk when a message claims unusual account activity, an unrecognized device, restricted access, locked features, suspension, data loss, or a short deadline and asks the user to verify an account, take action, log in, or recover access.
+- Mark High Risk even if there is no visible link when the message combines account-security fear with a call to action such as "verify your account", "take action", "avoid suspension", or "act within 24 hours".
+- Generic greetings like "Dear User", unofficial sender addresses, or vague "Security Team" signatures should increase risk when paired with account verification pressure.
+- Mark Medium Risk only when the content is suspicious but does not request action, credentials, money, or account verification and does not threaten consequences.
+- Mark Low Risk only when there are no meaningful phishing signals.
+
 OCR text:
 {{OCR_TEXT}}
 

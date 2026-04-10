@@ -18,6 +18,8 @@ class PhishingSignalAnalyzer {
         Regex("\\b(paypal|apple|google|gmail|bank|chase|wells fargo|amazon|microsoft|support)\\b")
     private val pressureRegex =
         Regex("\\b(suspend|disabled|locked|expires|limited time|avoid|prevent|failure)\\b")
+    private val accountSecurityThreatRegex =
+        Regex("\\b(unusual activity|unrecognized device|restricted|temporarily restricted|permanent suspension|loss of access|associated data|verify your account|take action|within \\d+ hours?)\\b")
 
     fun analyze(ocrText: String): PhishingAnalysisResult {
         val normalizedText = ocrText.trim()
@@ -47,6 +49,15 @@ class PhishingSignalAnalyzer {
         if (credentialRegex.containsMatchIn(lowercaseText)) {
             reasons += "Mentions credentials, account access, or verification details."
             score += 30
+        }
+
+        if (
+            credentialRegex.containsMatchIn(lowercaseText) &&
+            accountSecurityThreatRegex.containsMatchIn(lowercaseText) &&
+            (urgencyRegex.containsMatchIn(lowercaseText) || pressureRegex.containsMatchIn(lowercaseText))
+        ) {
+            reasons += "Combines account verification pressure with threats of suspension or access loss."
+            score += 28
         }
 
         val links = linkRegex.findAll(lowercaseText).map { it.value }.toList()
@@ -81,7 +92,7 @@ class PhishingSignalAnalyzer {
         return PhishingAnalysisResult(
             riskLevel = riskLevel,
             confidence = computeConfidence(score = score, reasonCount = reasons.size),
-            reasons = reasons.ifEmpty { listOf("No strong phishing signals were detected in the OCR text.") },
+            reasons = reasons.ifEmpty { listOf("No strong phishing signals were detected in the message text.") },
             recommendation = recommendation,
         )
     }

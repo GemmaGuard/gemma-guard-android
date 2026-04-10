@@ -114,6 +114,23 @@ When Gemma 4 is initializing or unavailable, the app routes automatically to a l
 
 Each matched signal contributes to a scored result with the same structured output format as the Gemma 4 path. The model is always the primary path; the fallback is the safety net.
 
+## Localized Analysis
+
+Gemma Guard detects the device language at runtime and loads matching prompt files from `app/src/main/assets/prompts/`. If no localized prompt exists for the device language, it falls back to the default English prompt — no configuration required.
+
+Currently supported languages:
+
+| Language | Code | Prompt path |
+|----------|------|-------------|
+| English (default) | — | `prompts/` |
+| Russian | `ru` | `prompts/ru/` |
+
+The Russian prompt instructs Gemma 4 to produce its reasoning, risk assessment, and recommendation in Russian — while preserving any quoted fragments from the suspicious screen in their original language. This matters: the model must not translate attacker-controlled text, only explain it.
+
+This means a 70-year-old user in Russia sees the verdict in her own language, on her own device, with no data leaving the phone. The threat detection works the same. The explanation is just legible.
+
+Adding a new language requires two files — `prompts/<code>/system_prompt.txt` and `prompts/<code>/user_prompt.txt` — and no code changes.
+
 ## Technical Stack
 
 | Component | Role |
@@ -139,6 +156,8 @@ Every verdict includes the specific reasons Gemma 4 flagged the content and a co
 
 **Impact — Digital Equity & Inclusivity**
 Phishing protection that requires a cloud connection is protection that fails the users who need it most. Gemma Guard works offline, requires no account, and runs on consumer-grade Android hardware — making advanced threat detection accessible regardless of connectivity or income.
+
+The app also adapts its analysis language to the device locale. A Russian-speaking user sees the verdict, reasons, and recommendation in Russian — fully on-device, with no translation service involved. Adding further language support requires only two prompt files and no code changes.
 
 ## Getting Started
 

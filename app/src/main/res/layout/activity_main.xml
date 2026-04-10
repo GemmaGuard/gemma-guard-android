@@ -174,6 +174,26 @@
                         android:textSize="24sp"
                         android:textStyle="bold" />
 
+                    <TextView
+                        android:id="@+id/analysisLastScan"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center"
+                        android:textColor="@color/inkMuted"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+
+                    <ImageView
+                        android:id="@+id/analysisWarningIcon"
+                        android:layout_width="74dp"
+                        android:layout_height="74dp"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="18dp"
+                        android:contentDescription="@string/analysis_warning_icon_description"
+                        android:src="@drawable/ic_warning_triangle"
+                        android:visibility="gone" />
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -196,6 +216,7 @@
                             android:visibility="gone" />
 
                         <LinearLayout
+                            android:id="@+id/analysisConfidenceRow"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
@@ -310,23 +331,25 @@
                         android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
+                            android:id="@+id/analysisShareButton"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:contentDescription="@string/share_result_content_description"
+                            android:text="@string/share_result_action"
+                            android:textColor="@android:color/white"
+                            android:visibility="gone"
+                            app:backgroundTint="@color/accent" />
+
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/analysisMoreInfoButton"
                             style="@style/Widget.Material3.Button.TonalButton"
-                            android:layout_width="wrap_content"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:text="@string/analysis_more_information"
-                            android:visibility="gone" />
-
-                        <ImageButton
-                            android:id="@+id/analysisShareButton"
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
                             android:layout_marginStart="12dp"
-                            android:background="@drawable/bg_share_button"
-                            android:contentDescription="@string/history_share"
-                            android:padding="10dp"
-                            android:src="@android:drawable/ic_menu_share"
-                            android:tint="@color/accentDark"
+                            android:layout_weight="1"
+                            android:text="@string/analysis_more_information"
                             android:visibility="gone" />
                     </LinearLayout>
 
@@ -334,24 +357,95 @@
                         android:id="@+id/analysisMoreInfoSection"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="18dp"
                         android:orientation="vertical"
                         android:visibility="gone">
 
                         <TextView
-                            android:id="@+id/analysisModelSummary"
+                            android:id="@+id/analysisDetailsTitle"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:textColor="@color/inkMuted"
+                            android:text="@string/analysis_details_title"
+                            android:textColor="@color/ink"
+                            android:textSize="20sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/analysisPrivacySummary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/analysis_privacy_summary"
+                            android:textColor="@color/accentDark"
                             android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/analysisDetailsConfidence"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="20dp"
+                            android:textColor="@color/ink"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/analysisDetailsReasonsTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="18dp"
+                            android:text="@string/analysis_reasons_title"
+                            android:textColor="@color/ink"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/analysisDetailsReasons"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:lineSpacingMultiplier="1.5"
+                            android:textColor="@color/ink"
+                            android:textSize="15sp"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/analysisDetailsRecommendationTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="@string/analysis_recommendation_title"
+                            android:textColor="@color/ink"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/analysisDetailsRecommendation"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:lineSpacingMultiplier="1.4"
+                            android:textColor="@color/ink"
+                            android:textSize="15sp"
+                            android:visibility="gone" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
+                            android:layout_marginTop="20dp"
                             android:text="@string/analysis_information_captured_screen"
                             android:textColor="@color/ink"
+                            android:textSize="16sp"
                             android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/analysis_original_message_helper"
+                            android:textColor="@color/inkMuted"
+                            android:textSize="14sp" />
 
                         <ImageView
                             android:id="@+id/analysisPreviewImage"
@@ -359,7 +453,9 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="10dp"
                             android:adjustViewBounds="true"
+                            android:background="@drawable/bg_readable_block"
                             android:contentDescription="@string/capture_preview_title"
+                            android:padding="8dp"
                             android:visibility="gone" />
 
                         <TextView
@@ -371,12 +467,45 @@
                             android:textColor="@color/inkMuted"
                             android:textSize="14sp" />
 
-                        <TextView
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/analysisTechnicalToggleButton"
+                            style="@style/Widget.Material3.Button.TextButton"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:text="@string/analysis_information_ocr"
-                            android:textColor="@color/ink"
+                            android:layout_marginTop="18dp"
+                            android:text="@string/analysis_show_technical_details" />
+
+                        <LinearLayout
+                            android:id="@+id/analysisAdvancedSection"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/analysis_technical_title"
+                                android:textColor="@color/ink"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/analysisModelSummary"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:textColor="@color/inkMuted"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="18dp"
+                                android:text="@string/analysis_information_ocr"
+                                android:textColor="@color/ink"
+                                android:textSize="16sp"
                             android:textStyle="bold" />
 
                         <TextView
@@ -393,7 +522,10 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_readable_block"
                             android:fontFamily="monospace"
+                            android:lineSpacingMultiplier="1.25"
+                            android:padding="12dp"
                             android:textColor="@color/ink"
                             android:textIsSelectable="true"
                             android:textSize="13sp"
@@ -424,10 +556,14 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:fontFamily="monospace"
+                            android:background="@drawable/bg_readable_block"
+                            android:lineSpacingMultiplier="1.25"
+                            android:padding="12dp"
                             android:textColor="@color/inkMuted"
                             android:textIsSelectable="true"
                             android:textSize="12sp"
                             android:visibility="gone" />
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
@@ -470,6 +606,13 @@
         </LinearLayout>
     </ScrollView>
 
+    <com.gemmaguard.app.ui.widget.HighRiskWarningFrameView
+        android:id="@+id/highRiskWarningFrame"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
     <FrameLayout
         android:id="@+id/scanningOverlay"
         android:layout_width="match_parent"
@@ -477,13 +620,20 @@
         android:background="@color/overlayScrim"
         android:clickable="true"
         android:focusable="true"
-        android:padding="28dp"
         android:visibility="gone">
+
+        <com.gemmaguard.app.ui.widget.HighRiskWarningFrameView
+            android:id="@+id/overlayHighRiskWarningFrame"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:layout_margin="28dp"
             app:cardBackgroundColor="@color/accentDark"
             app:cardElevation="0dp"
             app:cardCornerRadius="20dp">
@@ -566,7 +716,17 @@
                     android:paddingBottom="24dp"
                     android:visibility="gone">
 
+                    <ImageView
+                        android:id="@+id/overlayWarningIcon"
+                        android:layout_width="82dp"
+                        android:layout_height="82dp"
+                        android:layout_gravity="center_horizontal"
+                        android:contentDescription="@string/analysis_warning_icon_description"
+                        android:src="@drawable/ic_warning_triangle"
+                        android:visibility="gone" />
+
                     <LinearLayout
+                        android:id="@+id/overlayConfidenceRow"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="18dp"
@@ -631,6 +791,7 @@
                         android:textStyle="bold" />
 
                     <TextView
+                        android:id="@+id/overlayResultReasonsTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="14dp"
@@ -670,23 +831,24 @@
                         android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/overlayDismissButton"
+                            android:id="@+id/overlayShareButton"
                             style="@style/Widget.Material3.Button.TonalButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/overlay_result_dismiss" />
+                            android:contentDescription="@string/share_result_content_description"
+                            android:text="@string/share_result_action"
+                            android:textColor="@android:color/white"
+                            app:backgroundTint="@color/accent" />
 
-                        <ImageButton
-                            android:id="@+id/overlayShareButton"
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/overlayDismissButton"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
-                            android:background="@drawable/bg_share_button"
-                            android:contentDescription="@string/history_share"
-                            android:padding="10dp"
-                            android:src="@android:drawable/ic_menu_share"
-                            android:tint="@color/accentDark" />
+                            android:layout_weight="1"
+                            android:text="@string/overlay_result_dismiss" />
                     </LinearLayout>
                 </LinearLayout>
 
