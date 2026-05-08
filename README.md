@@ -37,11 +37,18 @@ That is the user this app is designed for. Everyone else is a bonus.
 
 ## Demo
 
-> Screenshots and demo video coming before final submission.
+| Home | Verdict | Details | Share |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/main-screen.webp" width="200" alt="Home screen — Tap to scan" /> | <img src="docs/screenshots/warning-result.webp" width="200" alt="High Risk Detected verdict" /> | <img src="docs/screenshots/details-screen.webp" width="200" alt="Scan details with reasons" /> | <img src="docs/screenshots/share-preview.webp" width="200" alt="Share scan result preview" /> |
+| Tap the orb to scan any screen | Instant verdict in seconds | Confidence score and why it was flagged | One-tap on-device share |
 
-| Floating trigger | Scanning | Verdict |
-|:---:|:---:|:---:|
-| *(screenshot)* | *(screenshot)* | *(screenshot)* |
+<p align="center">
+  <a href="https://youtu.be/i7s5aJ-T4ZY">
+    <img src="https://img.youtube.com/vi/i7s5aJ-T4ZY/maxresdefault.jpg" alt="Watch the Gemma Guard demo on YouTube" width="480" />
+  </a>
+  <br/>
+  <em>▶ Watch the demo on YouTube</em>
+</p>
 
 ---
 
@@ -97,6 +104,7 @@ Recommendation:
 | Works across every app | ✅ | ❌ (browser-only) |
 | No subscription | ✅ | Often ❌ |
 | Explainable verdict | ✅ | Rarely |
+| Open source & auditable | ✅ | ❌ |
 
 This makes Gemma Guard meaningful for users in low-connectivity environments, users in regions where cloud services are unavailable or untrusted, and anyone who has ever received a suspicious message outside a browser — which is everyone.
 
@@ -152,7 +160,7 @@ Gemma Guard is built on LiteRT-LM end-to-end. On-device inference is not a featu
 The app implements intelligent local task routing: Gemma 4 is the primary analysis engine; a lightweight on-device signal analyzer handles fallback when the model is unavailable. Both paths run entirely on the device.
 
 **Impact — Safety & Trust**
-Every verdict includes the specific reasons Gemma 4 flagged the content and a concrete recommendation. The model does not return a score — it explains itself. Transparency is built into the product flow, not added on top.
+Every verdict includes the specific reasons Gemma 4 flagged the content and a concrete recommendation. The model does not return a score — it explains itself. Transparency is built into the product flow, not added on top. The entire codebase is open source under CC BY 4.0 — anyone can audit exactly what the app does and verify that no data leaves the device.
 
 **Impact — Digital Equity & Inclusivity**
 Phishing protection that requires a cloud connection is protection that fails the users who need it most. Gemma Guard works offline, requires no account, and runs on consumer-grade Android hardware — making advanced threat detection accessible regardless of connectivity or income.
