@@ -19,6 +19,26 @@
   Built for the <a href="https://www.kaggle.com/competitions/gemma-4-good-hackathon">Gemma 4 Good Hackathon</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/GemmaGuard/gemma-guard-android/actions/workflows/android.yml"><img src="https://github.com/GemmaGuard/gemma-guard-android/actions/workflows/android.yml/badge.svg" alt="Android CI" /></a>
+  <a href="https://github.com/GemmaGuard/gemma-guard-android/releases"><img src="https://img.shields.io/github/v/release/GemmaGuard/gemma-guard-android?sort=semver&label=release" alt="Latest release" /></a>
+  <img src="https://img.shields.io/badge/platform-Android-3ddc84?logo=android&logoColor=white" alt="Platform: Android" />
+  <img src="https://img.shields.io/badge/min%20SDK-31-blue" alt="Min SDK 31" />
+  <img src="https://img.shields.io/badge/Kotlin-2.3-7f52ff?logo=kotlin&logoColor=white" alt="Kotlin" />
+  <img src="https://img.shields.io/badge/Built%20with-Gemma%204-4285F4?logo=google&logoColor=white" alt="Built with Gemma 4" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-CC%20BY%204.0-lightgrey" alt="License: CC BY 4.0" /></a>
+</p>
+
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=org.gemmaguard.android">
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="64" />
+  </a>
+</p>
+
+<p align="center">
+  <strong>🎉 Now live on <a href="https://play.google.com/store/apps/details?id=org.gemmaguard.android">Google Play</a> · <a href="https://gemmaguard.org/">gemmaguard.org</a></strong>
+</p>
+
 ---
 
 **Phishing works because it looks real. Gemma Guard catches it before you act — one tap, fully offline, across every app on your phone.**
