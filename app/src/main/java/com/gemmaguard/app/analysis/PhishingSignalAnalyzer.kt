@@ -46,6 +46,14 @@ class PhishingSignalAnalyzer {
             score += 28
         }
 
+        if (
+            moneyRegex.containsMatchIn(lowercaseText) &&
+            (urgencyRegex.containsMatchIn(lowercaseText) || pressureRegex.containsMatchIn(lowercaseText))
+        ) {
+            reasons += "Combines urgency with a direct money or payment request."
+            score += 15
+        }
+
         if (credentialRegex.containsMatchIn(lowercaseText)) {
             reasons += "Mentions credentials, account access, or verification details."
             score += 30
